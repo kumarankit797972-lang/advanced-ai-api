@@ -5,6 +5,7 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
+// Tumhara API Endpoint
 app.get('/api/v1/api/glm-4', async (req, res) => {
     try {
         const userQuery = req.query.q;
@@ -16,34 +17,31 @@ app.get('/api/v1/api/glm-4', async (req, res) => {
             });
         }
 
-        // Yahan tumhara Bearer Token aayega (Render se lega)
-        const ZAI_TOKEN = process.env.ZAI_BEARER_TOKEN;
+        // Google Gemini API Key (Render se aayegi)
+        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-        // Z.ai ka actual chat endpoint (jaise browser bhejta hai)
-        const zaiResponse = await axios.post('https://chat.z.ai/api/chat/reply', {
-            text: userQuery,
-            model: "glm-4"
-        }, {
-            headers: {
-                'Authorization': `Bearer ${ZAI_TOKEN}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        // Gemini ke advanced model ko request bhejo
+        const geminiResponse = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                contents: [{ parts: [{ text: userQuery }] }]
             }
-        });
+        );
 
-        // AI ka jawab nikalo (Z.ai ka response format thoda alag hota hai, isliye safe side rakhi hai)
-        const aiText = zaiResponse.data.detail || zaiResponse.data.text || zaiResponse.data;
+        // AI ka text response nikalo
+        const aiText = geminiResponse.data.candidates[0].content.parts[0].text;
 
+        // Exact wahi JSON structure return karo
         return res.json({
             status: true,
-            results: typeof aiText === 'string' ? aiText : JSON.stringify(aiText)
+            results: aiText
         });
 
     } catch (error) {
-        console.error("Z.ai Error:", error.response ? error.response.data : error.message);
+        console.error("Gemini Error:", error.response ? error.response.data : error.message);
         return res.status(500).json({
             status: false,
-            results: "Z.ai ne block kar diya, ya token expire ho gaya."
+            results: "Gemini AI se response lene mein problem aayi."
         });
     }
 });
