@@ -5,10 +5,8 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
-// Tumhara naya API Endpoint (Naam GLM-4 rakha gaya hai)
 app.get('/api/v1/api/glm-4', async (req, res) => {
     try {
-        // 1. User ne URL mein 'q' mein kya search kiya hai wo nikalo
         const userQuery = req.query.q;
 
         if (!userQuery) {
@@ -18,36 +16,34 @@ app.get('/api/v1/api/glm-4', async (req, res) => {
             });
         }
 
-        // 2. Z.ai API Key Render se lega
-        const ZAI_API_KEY = process.env.ZAI_API_KEY;
+        // Yahan tumhara Bearer Token aayega (Render se lega)
+        const ZAI_TOKEN = process.env.ZAI_BEARER_TOKEN;
 
-        // 3. Z.ai ke sabse advanced model (glm-4-plus) ko request bhejo
-        const zaiResponse = await axios.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-            model: "glm-4-plus", // <-- Yeh Z.ai ka sabse advanced model hai
-            messages: [
-                { role: "user", content: userQuery }
-            ]
+        // Z.ai ka actual chat endpoint (jaise browser bhejta hai)
+        const zaiResponse = await axios.post('https://chat.z.ai/api/chat/reply', {
+            text: userQuery,
+            model: "glm-4"
         }, {
             headers: {
-                'Authorization': `Bearer ${ZAI_API_KEY}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${ZAI_TOKEN}`,
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
 
-        // 4. AI ka text response nikalo
-        const aiText = zaiResponse.data.choices[0].message.content;
+        // AI ka jawab nikalo (Z.ai ka response format thoda alag hota hai, isliye safe side rakhi hai)
+        const aiText = zaiResponse.data.detail || zaiResponse.data.text || zaiResponse.data;
 
-        // 5. Exact wahi JSON structure return karo
         return res.json({
             status: true,
-            results: aiText
+            results: typeof aiText === 'string' ? aiText : JSON.stringify(aiText)
         });
 
     } catch (error) {
         console.error("Z.ai Error:", error.response ? error.response.data : error.message);
         return res.status(500).json({
             status: false,
-            results: "Z.ai AI se response lene mein problem aayi."
+            results: "Z.ai ne block kar diya, ya token expire ho gaya."
         });
     }
 });
